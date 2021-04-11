@@ -23,3 +23,16 @@ type target struct {
 type targets struct {
 	Data []target `json:"data"`
 }
+
+type targetPost struct {
+	Target string `json:"target"`
+	Weight int    `json:"weight"`
+}
+
+type targetResp struct {
+	Id         string `json:"id"`
+	Target     string `json:"target"`
+	Weight     int    `json:"weight"`
+	Upsteam    string
+	Created_at float64 `json:"created_at"`
+}

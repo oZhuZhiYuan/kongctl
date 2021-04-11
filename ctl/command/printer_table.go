@@ -21,11 +21,21 @@ func upStreamsPrint(upss *upstreams) {
 
 func targetsPrint(tgts *targets) {
 	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"id", "target", "stream", "health", "created_at"})
+	table.SetHeader([]string{"id", "target", "weight", "upstream", "health", "created_at"})
 	for _, tgt := range tgts.Data {
 		tm := time.Unix(int64(tgt.Created_at), 0)
 		table.Append([]string{tgt.Id, tgt.Target, strconv.Itoa(tgt.Weight),
 			tgt.Upsteam, tgt.Health, tm.Format("2006-01-02 15:04:05")})
+	}
+	table.Render()
+}
+
+func targetRespPrint(tgts []targetResp) {
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetHeader([]string{"id", "target", "weight", "upstream"})
+	for _, tgt := range tgts {
+		table.Append([]string{tgt.Id, tgt.Target, strconv.Itoa(tgt.Weight),
+			tgt.Upsteam})
 	}
 	table.Render()
 }

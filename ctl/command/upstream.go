@@ -8,7 +8,8 @@ import (
 )
 
 var (
-	unames []string
+	unames      []string
+	targetNames []string
 )
 
 type cuptreams struct {
@@ -58,11 +59,11 @@ func upStreamAddTargets() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add-targets",
 		Short: "add the targets of upstreams",
-		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println("Pending...")
-		},
+		Run:   upStreamAddTargetsOp,
 	}
 	cmd.Flags().StringSliceVar(&unames, "uname", []string{}, "upstream names")
+	cmd.Flags().StringSliceVar(&targetNames, "target", []string{}, "target names")
+	cmd.Flags().Int("weight", 100, "target weight, default 100")
 	return cmd
 }
 
@@ -70,11 +71,10 @@ func upStreamDelTargets() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "del-targets",
 		Short: "del the targets of upstreams",
-		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println("Pending...")
-		},
+		Run:   upStreamDelTargetsOp,
 	}
 	cmd.Flags().StringSliceVar(&unames, "uname", []string{}, "upstream names")
+	cmd.Flags().StringSliceVar(&targetNames, "target", []string{}, "target names")
 	return cmd
 }
 
@@ -205,7 +205,7 @@ func upStreamShowTargetsOp(cmd *cobra.Command, args []string) {
 	concur, _ := cmd.Flags().GetInt("concur")
 	if concur == 0 {
 		for index, host := range hosts {
-			fmt.Printf("\033[1;36;40m[%d]\033[0m upstreams in host \033[1;33;40m%s\033[0m are as follow :\n", index+1, host)
+			fmt.Printf("\033[1;36;40m[%d]\033[0m Targets on host \033[1;33;40m%s\033[0m are as follow :\n", index+1, host)
 			getTargets(host)
 		}
 		return
@@ -228,4 +228,76 @@ func getTargets(host string) {
 		tgts_all.Data = append(tgts_all.Data, tgts.Data...)
 	}
 	targetsPrint(&tgts_all)
+}
+
+func upStreamAddTargetsOp(cmd *cobra.Command, args []string) {
+	if len(unames) == 0 {
+		ExitWithError(ExitBadFlag, fmt.Errorf("Add-targets need set upstream_name {--uname}"))
+	}
+	if len(targetNames) == 0 {
+		ExitWithError(ExitBadFlag, fmt.Errorf("Add-targets need set target {--target}"))
+	}
+
+	hosts, _ := cmd.Flags().GetStringSlice("hosts")
+	weight, _ := cmd.Flags().GetInt("weight")
+	concur, _ := cmd.Flags().GetInt("concur")
+	if concur == 0 {
+		for index, host := range hosts {
+			fmt.Printf("\033[1;36;40m[%d]\033[0m Add argets on host \033[1;33;40m%s\033[0m :\n", index+1, host)
+			addTargets(host, weight)
+		}
+		return
+	}
+
+}
+
+func addTargets(host string, weight int) {
+	// fmt.Println(host, targetNames, unames, weight)
+	targetAll := []targetResp{}
+	for _, uname := range unames {
+		url := "http://" + host + "/upstreams/" + uname + "/targets"
+		for _, targetname := range targetNames {
+			payload := targetPost{targetname, weight}
+			js, err := json.Marshal(payload)
+			// fmt.Printf(string(js))
+			if err != nil {
+				ExitWithError(ExitError, err)
+			}
+			body := postRequest(url, js)
+			// fmt.Printf(string(body))
+			tgt := targetResp{}
+			if err := json.Unmarshal(body, &tgt); err != nil {
+				fmt.Println("json.Unmarshal error")
+				ExitWithError(ExitError, err)
+			}
+			if tgt == (targetResp{}) {
+				continue
+			}
+			tgt.Upsteam = uname
+			targetAll = append(targetAll, tgt)
+		}
+	}
+	targetRespPrint(targetAll)
+}
+
+func upStreamDelTargetsOp(cmd *cobra.Command, args []string) {
+	if len(unames) == 0 {
+		ExitWithError(ExitBadFlag, fmt.Errorf("Del-targets need set upstream_name {--uname}"))
+	}
+	if len(targetNames) == 0 {
+		ExitWithError(ExitBadFlag, fmt.Errorf("Del-targets need set target {--target}"))
+	}
+
+	hosts, _ := cmd.Flags().GetStringSlice("hosts")
+	concur, _ := cmd.Flags().GetInt("concur")
+	// set a target's weight to zero equal to delete it
+	weight := 0
+	if concur == 0 {
+		for index, host := range hosts {
+			fmt.Printf("\033[1;36;40m[%d]\033[0m Del targets on host \033[1;33;40m%s\033[0m :\n", index+1, host)
+			addTargets(host, weight)
+		}
+		return
+	}
+
 }
