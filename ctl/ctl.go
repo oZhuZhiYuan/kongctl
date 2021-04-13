@@ -31,6 +31,7 @@ func init() {
 	rootCmd.PersistentFlags().IntP("concur", "c", 0, "the number of concurrent opertion")
 	rootCmd.AddCommand(
 		command.UpStreamCommand(),
+		command.ServiceCommand(),
 		command.VersionCommand(),
 	)
 }

@@ -1,12 +1,27 @@
 package command
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 )
 
 type GlobalFlags struct {
 	Hosts []string
+}
+
+type object interface {
+	printTable()
+}
+
+func getObject(obj object, url string) {
+	body := getRequest(url)
+	err := json.Unmarshal(body, &obj)
+	if err != nil {
+		fmt.Println("json.Unmarshal error")
+		ExitWithError(ExitError, err)
+	}
+	obj.printTable()
 }
 
 func printBanner(index, host, banner string, num int) {
