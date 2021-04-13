@@ -20,7 +20,7 @@ type cuptreams struct {
 func UpStreamCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "upstream",
-		Short: "upstream command",
+		Short: "Upstream command",
 	}
 	cmd.AddCommand(
 		upStreamShow(),
@@ -93,11 +93,11 @@ func upStreamCreate() *cobra.Command {
 func upStreamShowOp(cmd *cobra.Command, args []string) {
 	hosts, _ := cmd.Flags().GetStringSlice("hosts")
 	concur, _ := cmd.Flags().GetInt("concur")
+	banner := "upstreams in host %s are as follow :\n"
 	// Don't be concurret
 	if concur == 0 {
 		for index, host := range hosts {
-			fmt.Printf("\033[1;36;40m[%d]\033[0m upstreams in host \033[1;33;40m%s\033[0m are as follow :\n", index+1, host)
-
+			printBanner(fmt.Sprint(index+1), host, banner, len(hosts))
 			if len(unames) == 0 {
 				getAllUpstream(host)
 			}
@@ -203,9 +203,10 @@ func upStreamShowTargetsOp(cmd *cobra.Command, args []string) {
 	}
 	hosts, _ := cmd.Flags().GetStringSlice("hosts")
 	concur, _ := cmd.Flags().GetInt("concur")
+	banner := "Targets on host %s are as follow:\n"
 	if concur == 0 {
 		for index, host := range hosts {
-			fmt.Printf("\033[1;36;40m[%d]\033[0m Targets on host \033[1;33;40m%s\033[0m are as follow :\n", index+1, host)
+			printBanner(fmt.Sprint(index+1), host, banner, len(hosts))
 			getTargets(host)
 		}
 		return
@@ -241,9 +242,10 @@ func upStreamAddTargetsOp(cmd *cobra.Command, args []string) {
 	hosts, _ := cmd.Flags().GetStringSlice("hosts")
 	weight, _ := cmd.Flags().GetInt("weight")
 	concur, _ := cmd.Flags().GetInt("concur")
+	banner := "Add argets on host %s :\n"
 	if concur == 0 {
 		for index, host := range hosts {
-			fmt.Printf("\033[1;36;40m[%d]\033[0m Add argets on host \033[1;33;40m%s\033[0m :\n", index+1, host)
+			printBanner(fmt.Sprint(index+1), host, banner, len(hosts))
 			addTargets(host, weight)
 		}
 		return
@@ -290,11 +292,12 @@ func upStreamDelTargetsOp(cmd *cobra.Command, args []string) {
 
 	hosts, _ := cmd.Flags().GetStringSlice("hosts")
 	concur, _ := cmd.Flags().GetInt("concur")
+	banner := "Del argets on host %s :\n"
 	// set a target's weight to zero equal to delete it
 	weight := 0
 	if concur == 0 {
 		for index, host := range hosts {
-			fmt.Printf("\033[1;36;40m[%d]\033[0m Del targets on host \033[1;33;40m%s\033[0m :\n", index+1, host)
+			printBanner(fmt.Sprint(index+1), host, banner, len(hosts))
 			addTargets(host, weight)
 		}
 		return

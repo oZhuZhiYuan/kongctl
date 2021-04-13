@@ -10,7 +10,7 @@ import (
 
 const (
 	cliName        = "kongctl"
-	cliDescription = "command line for kong"
+	cliDescription = "Command line for kong"
 )
 
 var (
@@ -28,9 +28,10 @@ var (
 func init() {
 	cobra.OnInitialize(initParser)
 	rootCmd.PersistentFlags().StringSliceVarP(&globalFlags.Hosts, "hosts", "H", []string{"127.0.0.1:8001"}, "remote or local hosts")
-	rootCmd.PersistentFlags().IntP("concur", "C", 0, "the number of concurrent opertion")
+	rootCmd.PersistentFlags().IntP("concur", "c", 0, "the number of concurrent opertion")
 	rootCmd.AddCommand(
 		command.UpStreamCommand(),
+		command.VersionCommand(),
 	)
 }
 
