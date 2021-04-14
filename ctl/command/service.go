@@ -1,7 +1,6 @@
 package command
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -18,20 +17,23 @@ func ServiceCommand() *cobra.Command {
 	}
 	cmd.AddCommand(
 		serviceShow(),
+		serviceShowRoutes(),
+		serviceShowPlugins(),
 	)
 	return cmd
 }
 
+// ########## kongctl service show
 func serviceShow() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "show [--sname upstream-names]",
+		Use:   "show [--sname service-names]",
 		Short: "Show services",
 		Long: `show all services by default,
 if set flag sname,show the provided services only.
 		`,
 		Run: serviceShowOp,
 	}
-	cmd.Flags().StringSliceVar(&unames, "sname", []string{}, "service names")
+	cmd.Flags().StringSliceVar(&snames, "sname", []string{}, "service names")
 	return cmd
 }
 
@@ -47,7 +49,7 @@ func serviceShowOp(cmd *cobra.Command, args []string) {
 				getAllService(host)
 			}
 			if len(snames) > 0 {
-				fmt.Println(hosts)
+				getServiceByNname(host)
 			}
 		}
 		return
@@ -57,31 +59,102 @@ func serviceShowOp(cmd *cobra.Command, args []string) {
 func getAllService(host string) {
 	sers := services{}
 	url := "http://" + host + "/services"
-	// fmt.Println(url)
-	// body := getRequest(url)
-	// err := json.Unmarshal(body, &sers)
-	// if err != nil {
-	// 	ExitWithError(ExitError, err)
-	// }
-	// servicesPrint(&sers)
-	getObject(&sers, url)
+	getRequestJson(url, &sers)
+	sers.printTable()
 }
 
 func getServiceByNname(host string) {
-	upss := upstreams{}
-	for _, uname := range unames {
-		url := "http://" + host + "/services/" + uname
-		body := getRequest(url)
-		ups := upstream{}
-		err := json.Unmarshal(body, &ups)
-		if err != nil {
-			ExitWithError(ExitError, err)
-		}
-		// if get nothing, skip print
-		if ups == (upstream{}) {
-			continue
-		}
-		upss.Data = append(upss.Data, ups)
+	sers := services{}
+	sers.Data = make([]service, len(snames))
+	for index, sname := range snames {
+		url := "http://" + host + "/services/" + sname
+		getRequestJson(url, &sers.Data[index])
 	}
-	upStreamsPrint(&upss)
+	sers.printTable()
+}
+
+// ########## kongctl service show-routes
+func serviceShowRoutes() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "show-routes [--sname service-names]",
+		Short: "Show routes of services",
+		Long:  `Show routes of services`,
+		Run:   serviceShowRoutesOp,
+	}
+	cmd.Flags().StringSliceVar(&snames, "sname", []string{}, "service names")
+	return cmd
+}
+
+func serviceShowRoutesOp(cmd *cobra.Command, args []string) {
+	if len(snames) == 0 {
+		ExitWithError(ExitBadFlag, fmt.Errorf("show-routes need set service_name {--sname}"))
+	}
+	hosts, _ := cmd.Flags().GetStringSlice("hosts")
+	concur, _ := cmd.Flags().GetInt("concur")
+	banner := "Routes in host %s are as follow :\n"
+	// Don't be concurret
+	if concur == 0 {
+		for index, host := range hosts {
+			printBanner(fmt.Sprint(index+1), host, banner, len(hosts))
+			getRoutes(host)
+		}
+		return
+	}
+}
+
+func getRoutes(host string) {
+	routes_all := routes{}
+	for _, sname := range snames {
+		url := "http://" + host + "/services/" + sname + "/routes"
+		routes := routes{}
+		getRequestJson(url, &routes)
+		for i := 0; i < len(routes.Data); i++ {
+			routes.Data[i].Service_name = sname
+		}
+		routes_all.Data = append(routes_all.Data, routes.Data...)
+	}
+	routes_all.printTable()
+}
+
+// ########## kongctl service show-plugins
+func serviceShowPlugins() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "show-plugins [--sname service-names]",
+		Short: "Show plugins of services",
+		Long:  `Show plugins of services`,
+		Run:   serviceShowPluginsOp,
+	}
+	cmd.Flags().StringSliceVar(&snames, "sname", []string{}, "service names")
+	return cmd
+}
+
+func serviceShowPluginsOp(cmd *cobra.Command, args []string) {
+	if len(snames) == 0 {
+		ExitWithError(ExitBadFlag, fmt.Errorf("show-plugins need set service_name {--sname}"))
+	}
+	hosts, _ := cmd.Flags().GetStringSlice("hosts")
+	concur, _ := cmd.Flags().GetInt("concur")
+	banner := "Plugins in host %s are as follow :\n"
+	// Don't be concurret
+	if concur == 0 {
+		for index, host := range hosts {
+			printBanner(fmt.Sprint(index+1), host, banner, len(hosts))
+			getPlugins(host)
+		}
+		return
+	}
+}
+
+func getPlugins(host string) {
+	plugins_all := plugins{}
+	for _, sname := range snames {
+		url := "http://" + host + "/services/" + sname + "/plugins"
+		plugins := plugins{}
+		getRequestJson(url, &plugins)
+		for i := 0; i < len(plugins.Data); i++ {
+			plugins.Data[i].Service_name = sname
+		}
+		plugins_all.Data = append(plugins_all.Data, plugins.Data...)
+	}
+	plugins_all.printTable()
 }
