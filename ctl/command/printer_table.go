@@ -1,7 +1,6 @@
 package command
 
 import (
-	"fmt"
 	"os"
 	"strconv"
 	"time"
@@ -37,19 +36,6 @@ func targetRespPrint(tgts []targetResp) {
 	for _, tgt := range tgts {
 		table.Append([]string{tgt.Id, tgt.Target, strconv.Itoa(tgt.Weight),
 			tgt.Upsteam})
-	}
-	table.Render()
-}
-
-func servicesPrint(objs *services) {
-	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"id", "name", "host", "protocol", "port", "path",
-		"retries", "write_timeout", "read_timeout", "connect_timeout"})
-	for _, obj := range objs.Data {
-		table.Append([]string{obj.Id, obj.Name, obj.Host, obj.Protocol, fmt.Sprint(obj.Port), obj.Path,
-			fmt.Sprint(obj.Retries), fmt.Sprint(obj.Write_timeout),
-			fmt.Sprint(obj.Read_timeout), fmt.Sprint(obj.Connect_timeout),
-		})
 	}
 	table.Render()
 }

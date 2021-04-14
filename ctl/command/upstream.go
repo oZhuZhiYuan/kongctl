@@ -32,6 +32,7 @@ func UpStreamCommand() *cobra.Command {
 	return cmd
 }
 
+// ########## kongctl upstream show
 func upStreamShow() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "show [--uname upstream-names]",
@@ -40,51 +41,6 @@ func upStreamShow() *cobra.Command {
 if set flag uname,show the provided upstreams only.
 		`,
 		Run: upStreamShowOp,
-	}
-	cmd.Flags().StringSliceVar(&unames, "uname", []string{}, "upstream names")
-	return cmd
-}
-
-func upStreamShowTargets() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "show-targets",
-		Short: "show the targets of upstreams",
-		Run:   upStreamShowTargetsOp,
-	}
-	cmd.Flags().StringSliceVar(&unames, "uname", []string{}, "upstream names")
-	return cmd
-}
-
-func upStreamAddTargets() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "add-targets",
-		Short: "add the targets of upstreams",
-		Run:   upStreamAddTargetsOp,
-	}
-	cmd.Flags().StringSliceVar(&unames, "uname", []string{}, "upstream names")
-	cmd.Flags().StringSliceVar(&targetNames, "target", []string{}, "target names")
-	cmd.Flags().Int("weight", 100, "target weight, default 100")
-	return cmd
-}
-
-func upStreamDelTargets() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "del-targets",
-		Short: "del the targets of upstreams",
-		Run:   upStreamDelTargetsOp,
-	}
-	cmd.Flags().StringSliceVar(&unames, "uname", []string{}, "upstream names")
-	cmd.Flags().StringSliceVar(&targetNames, "target", []string{}, "target names")
-	return cmd
-}
-
-func upStreamCreate() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "create upstreams",
-		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println("Pending...")
-		},
 	}
 	cmd.Flags().StringSliceVar(&unames, "uname", []string{}, "upstream names")
 	return cmd
@@ -107,94 +63,34 @@ func upStreamShowOp(cmd *cobra.Command, args []string) {
 		}
 		return
 	}
-	// Be concurret
-	cu := make(chan cuptreams, concur)
-	for _, host := range hosts {
-		go getUpstream(host, cu)
-	}
-	index := 1
-	for cup := range cu {
-		fmt.Printf("\033[1;36;40m[%d]\033[0m upstreams in host \033[1;33;40m%s\033[0m are as follow :\n", index, cup.host)
-		upStreamsPrint(&cup.upss)
-		index++
-		if index > len(hosts) {
-			break
-		}
-	}
-}
-
-func getUpstream(host string, cu chan cuptreams) {
-	if len(unames) == 0 {
-		getAllUpstreamC(host, cu)
-	}
-	if len(unames) > 0 {
-		getUpstreamByNnameC(host, cu)
-	}
-}
-
-func getAllUpstreamC(host string, cu chan cuptreams) {
-	url := "http://" + host + "/upstreams"
-	// fmt.Println(url)
-	body := getRequest(url)
-	upss := upstreams{}
-	err := json.Unmarshal(body, &upss)
-	if err != nil {
-		ExitWithError(ExitError, err)
-	}
-	cup := cuptreams{upss, host}
-	cu <- cup
-
-}
-
-func getUpstreamByNnameC(host string, cu chan cuptreams) {
-	upss := upstreams{}
-	for _, uname := range unames {
-		url := "http://" + host + "/upstreams/" + uname
-		body := getRequest(url)
-		ups := upstream{}
-		err := json.Unmarshal(body, &ups)
-		if err != nil {
-			ExitWithError(ExitError, err)
-		}
-		// if get nothing, skip print
-		if ups == (upstream{}) {
-			continue
-		}
-		upss.Data = append(upss.Data, ups)
-	}
-	cup := cuptreams{upss, host}
-	cu <- cup
 }
 
 func getAllUpstream(host string) {
-	url := "http://" + host + "/upstreams"
-	// fmt.Println(url)
-	body := getRequest(url)
 	upss := upstreams{}
-	err := json.Unmarshal(body, &upss)
-	if err != nil {
-		ExitWithError(ExitError, err)
-	}
-	upStreamsPrint(&upss)
+	url := "http://" + host + "/upstreams"
+	getRequestJson(url, &upss)
+	upss.printTable()
 }
 
 func getUpstreamByNname(host string) {
-	upss := upstreams{}
-	for _, uname := range unames {
+	objs := upstreams{}
+	objs.Data = make([]upstream, len(unames))
+	for index, uname := range unames {
 		url := "http://" + host + "/upstreams/" + uname
-		body := getRequest(url)
-		ups := upstream{}
-		err := json.Unmarshal(body, &ups)
-		if err != nil {
-			ExitWithError(ExitError, err)
-		}
-		// if get nothing, skip print
-		if ups == (upstream{}) {
-			continue
-		}
-		upss.Data = append(upss.Data, ups)
+		getRequestJson(url, &objs.Data[index])
 	}
-	upStreamsPrint(&upss)
+	objs.printTable()
+}
+
+// ########## kongctl upstream show-targets
+func upStreamShowTargets() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "show-targets",
+		Short: "show the targets of upstreams",
+		Run:   upStreamShowTargetsOp,
+	}
+	cmd.Flags().StringSliceVar(&unames, "uname", []string{}, "upstream names")
+	return cmd
 }
 
 func upStreamShowTargetsOp(cmd *cobra.Command, args []string) {
@@ -214,21 +110,31 @@ func upStreamShowTargetsOp(cmd *cobra.Command, args []string) {
 }
 
 func getTargets(host string) {
-	tgts_all := targets{}
+	objs_all := targets{}
 	for _, uname := range unames {
 		url := "http://" + host + "/upstreams/" + uname + "/health/"
-		body := getRequest(url)
-		tgts := targets{}
-		if err := json.Unmarshal(body, &tgts); err != nil {
-			ExitWithError(ExitError, err)
-		}
-		for i := 0; i < len(tgts.Data); i++ {
-			tgts.Data[i].Upsteam = uname
+		objs := targets{}
+		getRequestJson(url, &objs)
+		for i := 0; i < len(objs.Data); i++ {
+			objs.Data[i].Upsteam = uname
 		}
 
-		tgts_all.Data = append(tgts_all.Data, tgts.Data...)
+		objs_all.Data = append(objs_all.Data, objs.Data...)
 	}
-	targetsPrint(&tgts_all)
+	objs_all.printTable()
+}
+
+// ########## kongctl upstream add-targets
+func upStreamAddTargets() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "add-targets",
+		Short: "add the targets of upstreams",
+		Run:   upStreamAddTargetsOp,
+	}
+	cmd.Flags().StringSliceVar(&unames, "uname", []string{}, "upstream names")
+	cmd.Flags().StringSliceVar(&targetNames, "target", []string{}, "target names")
+	cmd.Flags().Int("weight", 100, "target weight, default 100")
+	return cmd
 }
 
 func upStreamAddTargetsOp(cmd *cobra.Command, args []string) {
@@ -255,7 +161,7 @@ func upStreamAddTargetsOp(cmd *cobra.Command, args []string) {
 
 func addTargets(host string, weight int) {
 	// fmt.Println(host, targetNames, unames, weight)
-	targetAll := []targetResp{}
+	objs_all := targetResps{}
 	for _, uname := range unames {
 		url := "http://" + host + "/upstreams/" + uname + "/targets"
 		for _, targetname := range targetNames {
@@ -267,19 +173,28 @@ func addTargets(host string, weight int) {
 			}
 			body := postRequest(url, js)
 			// fmt.Printf(string(body))
-			tgt := targetResp{}
-			if err := json.Unmarshal(body, &tgt); err != nil {
+			obj := targetResp{}
+			if err := json.Unmarshal(body, &obj); err != nil {
 				fmt.Println("json.Unmarshal error")
 				ExitWithError(ExitError, err)
 			}
-			if tgt == (targetResp{}) {
-				continue
-			}
-			tgt.Upsteam = uname
-			targetAll = append(targetAll, tgt)
+			obj.Upsteam = uname
+			objs_all.Data = append(objs_all.Data, obj)
 		}
 	}
-	targetRespPrint(targetAll)
+	objs_all.printTable()
+}
+
+// ########## kongctl upstream del-targets
+func upStreamDelTargets() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "del-targets",
+		Short: "del the targets of upstreams",
+		Run:   upStreamDelTargetsOp,
+	}
+	cmd.Flags().StringSliceVar(&unames, "uname", []string{}, "upstream names")
+	cmd.Flags().StringSliceVar(&targetNames, "target", []string{}, "target names")
+	return cmd
 }
 
 func upStreamDelTargetsOp(cmd *cobra.Command, args []string) {
@@ -303,4 +218,17 @@ func upStreamDelTargetsOp(cmd *cobra.Command, args []string) {
 		return
 	}
 
+}
+
+// ########## kongctl upstream create
+func upStreamCreate() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "create",
+		Short: "create upstreams",
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Println("Pending...")
+		},
+	}
+	cmd.Flags().StringSliceVar(&unames, "uname", []string{}, "upstream names")
+	return cmd
 }
